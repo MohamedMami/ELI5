@@ -48,7 +48,7 @@ class GroqProvider(LLMProvider):
             )
             async for chunk in stream:
                 if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+                    yield chunk.choices[0].delta.content  # yield the content as it comes in (streaming)
         except Exception as e:
             logger.error(f"Groq stream error: {e}")
             raise Exception(f"Failed to stream response: {e}")
