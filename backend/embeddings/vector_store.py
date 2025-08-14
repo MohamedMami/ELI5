@@ -2,7 +2,7 @@
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from sentence_transformers import SentenceTransformer
-from typing import dict , Any, List, Optional
+from typing import Dict, dict , Any, List, Optional
 import hashlib
 import asyncio
 from concurrent.futures import ThreadPoolExecutor #  is a standard library module for running tasks asynchronously using threads or processes.
@@ -87,15 +87,58 @@ class VectorStore:
                 self._generate_embeddings,
                 [query]
             )
-
+            try:
+                collection = self.client.get_collection(name=collection_name)
+            except Exception:
+                logging.warning(f"Collection '{collection_name}' not found")
+                return []
             # Perform similarity search
             results = collection.similarity_search(
                 query_embeddings=query_embedding,
                 n_results=n_results,
-                filter_metadata=filter_metadata
+                include = ["documents","metadatas","distances"],
+                where = filter_metadata
             )
-            logging.info(f"Found {len(results)} similar documents.")
-            return results
+            # format results 
+            formatted_results = []
+            if results["documents"] and results["documents"][0]:
+                for i in range(len(results["documents"][0])):
+                    formatted_results.append({
+                        "content": results["documents"][0][i],
+                        "metadata": results["metadatas"][0][i],
+                        "distance": results["distances"][0][i],
+                        "similarity_score": 1 - results['distances'][0][i]
+                    })
+            logging.info(f"Found {len(formatted_results)} similar documents ")
+            return formatted_results
         except Exception as e:
-            logging.error(f"Error searching for similar documents in collection '{collection_name}': {e}")
-            raise Exception(f"vector store error : {str (e)}")
+            logging.error(f"similarity search failed at: {e}")
+            raise Exception(f"search error: {str(e)}")
+    async def get_collection_stats(self, collection_name: str = "documents") -> Dict[str, Any]:
+        """Get statistics for a specific collection."""
+        try:
+            collection = self.client.get_collection(name=collection_name)
+            count = collection.count()
+            return {"name": collection_name, "document_count": count, 'status' : 'active' if count > 0 else 'empty'}
+        except Exception:
+            return {"name": collection_name, "document_count": 0, 'status' : 'not_found'}
+
+    async def delete_collection(self, collection_name: str) -> bool:
+        """Delete a specific collection."""
+        try:
+            self.client.delete_collection(name=collection_name)
+            logging.info(f"Collection '{collection_name}' deleted successfully.")
+            return True
+        except Exception as e:
+            logging.error(f"failed to delete '{collection_name}': {e}")
+            return False
+    async def list_collections(self) -> List[Dict[str, Any]]:
+        """List all collections in the vector store."""
+        try:
+            collections = self.client.list_collections()
+            return [{"name": col.name} for col in collections]
+        except Exception as e:
+            logging.error(f"failed to list collections: {e}")
+            return []
+
+vector_store = VectorStore()
