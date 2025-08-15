@@ -110,7 +110,7 @@ def extract_text_from_txt(file_content: bytes) -> str:
         logger.error(f"TXT extraction error: {e}")
         raise Exception(f"Failed to extract text from TXT file: {str(e)}")
 
-def extract_text_from_txt(file_content: bytes, filename: str) -> dict[str , Any]:
+def extract_text_from_file(file_content: bytes, filename: str) -> dict[str , Any]:
     
     extention = filename.split('.')[-1].lower() if '.' in filename else ''
     try:
